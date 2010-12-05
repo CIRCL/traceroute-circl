@@ -1,0 +1,83 @@
+#!/usr/bin/perl
+
+use strict;
+use Getopt::Compact;
+
+use Net::Whois::RIS;
+use IP::Country::Fast;
+use Net::Abuse::Utils;
+
+$| = 1;
+
+my $country = IP::Country::Fast->new();
+my $ris     = Net::Whois::RIS->new();
+my $opt     = new Getopt::Compact(
+    name    => 'traceroute-circl',
+    modes   => [qw(debug)],
+    version => '0.1',
+    struct  => [
+        [ [qw(i ip)],  qq(IP address to lookup), ':s' ],
+        [ [qw(r rbl)], qq(RBL domain to lookup), ':s' ],
+        [
+            [qw(c country)],
+            qq(Country ISO code to highlight (!!) in the output), ':s'
+        ],
+        [ [qw(h help)], qq(This help message), ':s' ]
+    ]
+);
+
+my $opts = $opt->opts;
+
+if ( !defined( $opts->{ip} ) ) {
+    print $opt->usage();
+    print "You must at least specify an IP address to lookup\n";
+    exit();
+}
+
+my $ip = $opts->{ip};
+
+open( TRACEROUTE, '-|' ) || exec "traceroute", $ip;
+
+while (<TRACEROUTE>) {
+
+    my $original = $_;
+    my @x = split( /\(/, $_ );
+    my $r;
+    if ( $x[1] =~ m/\)/ ) {
+        my $tip = $`;
+        $r .= "  Country:" . $country->inet_atocc($tip);
+        my $abuse = join( ' ', Net::Abuse::Utils::get_ipwi_contacts($tip) );
+        $r .= "  Abuse contact:" . $abuse . "\n";
+        $ris->getIPInfo($tip);
+        $r .=
+            "  ASN (RIS):"
+          . $ris->getOrigin()
+          . " "
+          . $ris->getDescr()
+          . " ASN INFO:"
+          . join( ' ', Net::Abuse::Utils::get_asn_info($tip) );
+
+        if ( defined( $opts->{rbl} ) ) {
+            $r .= " RBL:"
+              . Net::Abuse::Utils::get_dnsbl_listing( $tip, $opts->{rbl} );
+        }
+    }
+
+    if ( defined( $opts->{country} ) ) {
+        if ( $r =~ m/$opts->{country}/g ) {
+            print "!!" . $original;
+            print "!!" . $r . " \n";
+        }
+        else {
+            print $original;
+            print $r. " \n";
+        }
+    }
+    else {
+        print $original;
+        print $r. " \n";
+    }
+}
+
+close(TRACEROUTE);
+

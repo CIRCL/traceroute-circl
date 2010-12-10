@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 #
-# traceroute-circl - Traceroute improved wrapper for CSIRT and CERT operators 
+# traceroute-circl - Traceroute improved wrapper for CSIRT and CERT operators
 #
 # Copyright (C) 2010 CIRCL Computer Incident Response Center Luxembourg (smile gie)
-# Copyright (C) 2010 Alexandre Dulaunoy 
+# Copyright (C) 2010 Alexandre Dulaunoy
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,13 +18,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 use strict;
 use Getopt::Compact;
 
 use Net::Whois::RIS;
 use IP::Country::Fast;
 use Net::Abuse::Utils;
+use Locale::Country;
 
 $| = 1;
 
@@ -41,7 +41,8 @@ my $opt     = new Getopt::Compact(
             [qw(c country)],
             qq(Country ISO code to highlight (!!) in the output), ':s'
         ],
-        [ [qw(h help)], qq(This help message), ':s' ]
+        [ [qw(f fullcountry)], qq(Display full country name), ':s' ],
+        [ [qw(h help)],        qq(This help message),         ':s' ]
     ]
 );
 
@@ -64,14 +65,21 @@ while (<TRACEROUTE>) {
     my $r;
     if ( $x[1] =~ m/\)/ ) {
         my $tip = $`;
-        $r .= "  Country:" . $country->inet_atocc($tip);
+        my $lcountry;
+        if ( !defined( $opts->{fullcountry} ) ) {
+            $lcountry = $country->inet_atocc($tip);
+        }
+        else {
+            $lcountry = code2country( $country->inet_atocc($tip) );
+        }
+
+        $r .= "  Country:" . $lcountry;
         my $abuse = join( ' ', Net::Abuse::Utils::get_ipwi_contacts($tip) );
         $r .= "  Abuse contact:" . $abuse . "\n";
         $ris->getIPInfo($tip);
         $r .=
             "  ASN (RIS):"
-          . $ris->getOrigin()
-          . " "
+          . $ris->getOrigin() . " "
           . $ris->getDescr()
           . " ASN INFO:"
           . join( ' ', Net::Abuse::Utils::get_asn_info($tip) );

@@ -19,12 +19,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use strict;
+use utf8;
+
 use Getopt::Compact;
 
 use Net::Whois::RIS;
 use IP::Country::Fast;
 use Net::Abuse::Utils;
 use Locale::Country;
+use LWP::Simple;
+use JSON;
 
 $| = 1;
 
@@ -41,8 +45,9 @@ my $opt     = new Getopt::Compact(
             [qw(c country)],
             qq(Country ISO code to highlight (!!) in the output), ':s'
         ],
-        [ [qw(f fullcountry)], qq(Display full country name), ':s' ],
-        [ [qw(h help)],        qq(This help message),         ':s' ]
+        [ [qw(f fullcountry)], qq(Display full country name),      ':s' ],
+        [ [qw(m geomap)],      qq(Output file for the google map), ':s' ],
+        [ [qw(h help)],        qq(This help message),              ':s' ]
     ]
 );
 
@@ -72,7 +77,9 @@ while (<TRACEROUTE>) {
         else {
             $lcountry = code2country( $country->inet_atocc($tip) );
         }
-
+        if ( defined( $opts->{geomap} ) ) {
+            GetCountryLatLng( code2country( $country->inet_atocc($tip) ) );
+        }
         $r .= "  Country:" . $lcountry;
         my $abuse = join( ' ', Net::Abuse::Utils::get_ipwi_contacts($tip) );
         $r .= "  Abuse contact:" . $abuse . "\n";
@@ -108,3 +115,17 @@ while (<TRACEROUTE>) {
 
 close(TRACEROUTE);
 
+sub GetCountryLatLng {
+
+    my $country = shift;
+
+    my $gmapurl = "http://maps.google.com/maps/geo?q=" . $country;
+    my $c       = get($gmapurl);
+    if ( $c =~ m/\"name\": \"0.000000,0\.000000\"/ ) {
+        return undef;
+    }
+    use Encode;
+    my $gmap = JSON->new->decode( decode "UTF-8", $c );
+    print $gmap->{Placemark}[0]->{Point}->{coordinates}[1] . ","
+      . $gmap->{Placemark}[0]->{Point}->{coordinates}[0];
+}

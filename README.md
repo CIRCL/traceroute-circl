@@ -10,6 +10,7 @@ received.
 - Display abuse and contact for each hop
 - Can highligh specific country to match CSIRT's constituency
 - Output RBL entries for each hop
+- Output Google Maps traceroute (e.g. http://www.foo.be/traceroute-circl/test.html )
 - Show ASN origin from RIPE RIS and origin.asn.cymru.com sources
 
 ## Usage
@@ -17,16 +18,19 @@ received.
         perl traceroute-circl --ip 1.2.3.4
         perl traceroute-circl --rbl ipbl.zeustracker.abuse.ch --ip 1.2.3.4
         perl traceroute-circl --country LU --ip www.circl.lu 
+        perl traceroute-circl -i australia.gov.au -m out.js
 
         traceroute-circl v0.1
         usage: traceroute-circl [options] 
-        options                                                         
-        -d, --debug     Debug mode                                      
-        -i, --ip        IP address to lookup                            
-        -r, --rbl       RBL domain to lookup                            
-        -c, --country   Country ISO code to highlight (!!) in the output
-        -h, --help      This help message                               
-            --man       Display documentation                           
+        options                                                             
+        -d, --debug         Debug mode                                      
+        -i, --ip            IP address to lookup                            
+        -r, --rbl           RBL domain to lookup                            
+        -c, --country       Country ISO code to highlight (!!) in the output
+        -f, --fullcountry   Display full country name                       
+        -m, --geomap        Output file for the google map                  
+        -h, --help          This help message                               
+            --man           Display documentation                           
 
 
 ## Dependencies
@@ -36,6 +40,9 @@ received.
 - Perl Module Net::Whois::RIS
 - Perl Module IP::Country::Fast
 - Perl Module Net::Abuse::Utils
+- Perl Module Locale::Country
+- Perl Module LWP::Simple (used for Google Maps country lookup)
+- Perl Module JSON (used for Google Maps country lookup)
 - and existing "traceroute"/"traceroute-nanog" on your operating system
 
 ## Authors

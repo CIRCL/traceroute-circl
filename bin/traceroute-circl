@@ -59,6 +59,10 @@ if ( !defined( $opts->{ip} ) ) {
     exit();
 }
 
+my $gmap;
+my $gmapmarker;
+my $hop = 0;
+
 my $ip = $opts->{ip};
 
 open( TRACEROUTE, '-|' ) || exec "traceroute", $ip;
@@ -68,6 +72,7 @@ while (<TRACEROUTE>) {
     my $original = $_;
     my @x = split( /\(/, $_ );
     my $r;
+    $hop = $hop + 1;
     if ( $x[1] =~ m/\)/ ) {
         my $tip = $`;
         my $lcountry;
@@ -78,7 +83,12 @@ while (<TRACEROUTE>) {
             $lcountry = code2country( $country->inet_atocc($tip) );
         }
         if ( defined( $opts->{geomap} ) ) {
-            GetCountryLatLng( code2country( $country->inet_atocc($tip) ) );
+            my $loc =
+              GetCountryLatLng( code2country( $country->inet_atocc($tip) ) );
+            if ( defined($loc) ) {
+                GmapAddLine($loc);
+                GmapAddMarker( $loc, $hop );
+            }
         }
         $r .= "  Country:" . $lcountry;
         my $abuse = join( ' ', Net::Abuse::Utils::get_ipwi_contacts($tip) );
@@ -113,6 +123,13 @@ while (<TRACEROUTE>) {
     }
 }
 
+if ( defined( $opts->{geomap} ) ) {
+    my $mapd = GmapDisplay( $gmap, $gmapmarker );
+    open( OUTFILE, ">./" . $opts->{geomap} );
+    print OUTFILE $mapd;
+    close(OUTFILE);
+}
+
 close(TRACEROUTE);
 
 sub GetCountryLatLng {
@@ -126,6 +143,50 @@ sub GetCountryLatLng {
     }
     use Encode;
     my $gmap = JSON->new->decode( decode "UTF-8", $c );
-    print $gmap->{Placemark}[0]->{Point}->{coordinates}[1] . ","
+    return $gmap->{Placemark}[0]->{Point}->{coordinates}[1] . ","
       . $gmap->{Placemark}[0]->{Point}->{coordinates}[0];
+}
+
+sub GmapAddLine {
+    my $location = shift;
+    $gmap .= "new GLatLng(" . $location . "),";
+}
+
+sub GmapAddMarker {
+    my $location = shift;
+    my $text     = shift;
+    $gmapmarker .=
+        "\nmap.addOverlay(new GMarker(new GLatLng("
+      . $location
+      . "), markerOptions={title:\""
+      . $text
+      . "\"} ));";
+}
+
+sub GmapDisplay {
+    my $jsparam  = shift;
+    my $jsmarker = shift;
+
+    my $js = <<JSCODE;
+    <script type="text/javascript">
+    function initialize() {
+      if (GBrowserIsCompatible()) {
+        var map = new GMap2(document.getElementById("map_canvas"));
+        map.setCenter(new GLatLng(50, 4), 2);
+         map.setUIToDefault();
+        var polyline = new GPolyline([
+JSCODE
+
+    my $jsclose = <<JSCODEEND;
+                ], "#ff0000", 5);
+                map.addOverlay(polyline);
+JSCODEEND
+
+    my $jsclosejs = <<JSCODEENDJS;
+}
+}
+</script>
+JSCODEENDJS
+
+    return $js . $jsparam . $jsclose . $jsmarker . $jsclosejs;
 }

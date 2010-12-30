@@ -65,7 +65,7 @@ my $hop = 0;
 
 my $ip = $opts->{ip};
 
-open( TRACEROUTE, '-|' ) || exec "traceroute", $ip;
+open( TRACEROUTE, '-|' ) || exec "traceroute", $ip or die "traceroute command not found";
 
 while (<TRACEROUTE>) {
 

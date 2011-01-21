@@ -48,5 +48,6 @@ received.
 ## Authors
 
 Copyright (C) 2010 Alexandre Dulaunoy
+
 Copyright (C) 2010 CIRCL Computer Incident Response Center Luxembourg (smile gie)
 

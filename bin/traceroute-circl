@@ -37,10 +37,11 @@ my $ris     = Net::Whois::RIS->new();
 my $opt     = new Getopt::Compact(
     name    => 'traceroute-circl',
     modes   => [qw(debug)],
-    version => '0.1',
+    version => '0.2',
     struct  => [
-        [ [qw(i ip)],  qq(IP address to lookup), ':s' ],
-        [ [qw(r rbl)], qq(RBL domain to lookup), ':s' ],
+        [ [qw(i ip)],         qq(IP address to lookup),            ':s' ],
+        [ [qw(r rbl)],        qq(RBL domain to lookup),            ':s' ],
+        [ [qw(o addoptions)], qq(Additional option to traceroute), ':s' ],
         [
             [qw(c country)],
             qq(Country ISO code to highlight (!!) in the output), ':s'
@@ -63,9 +64,19 @@ my $gmap;
 my $gmapmarker;
 my $hop = 0;
 
+my @targ;
 my $ip = $opts->{ip};
 
-open( TRACEROUTE, '-|' ) || exec "traceroute", $ip or die "traceroute command not found";
+if ( defined( $opts->{addoptions} ) ) {
+    foreach ( split( ' ', $opts->{addoptions} ) ) {
+        push( @targ, $_ );
+    }
+}
+
+push( @targ, $ip );
+
+open( TRACEROUTE, '-|' ) || exec "traceroute", @targ
+  or die "traceroute command not found";
 
 while (<TRACEROUTE>) {
 

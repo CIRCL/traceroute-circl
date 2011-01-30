@@ -19,18 +19,22 @@ received.
         perl traceroute-circl --rbl ipbl.zeustracker.abuse.ch --ip 1.2.3.4
         perl traceroute-circl --country LU --ip www.circl.lu 
         perl traceroute-circl -i australia.gov.au -m out.js
+        perl traceroute-circl -i www.w3c.org -o"-I -v"
 
-        traceroute-circl v0.1
+        traceroute-circl v0.2
         usage: traceroute-circl [options] 
         options                                                             
         -d, --debug         Debug mode                                      
         -i, --ip            IP address to lookup                            
         -r, --rbl           RBL domain to lookup                            
+        -o, --addoptions    Additional option to traceroute
         -c, --country       Country ISO code to highlight (!!) in the output
         -f, --fullcountry   Display full country name                       
         -m, --geomap        Output file for the google map                  
         -h, --help          This help message                               
             --man           Display documentation                           
+
+        You must at least specify an IP address to lookup
 
 
 ## Dependencies
@@ -43,7 +47,7 @@ received.
 - Perl Module Locale::Country
 - Perl Module LWP::Simple (used for Google Maps country lookup)
 - Perl Module JSON (used for Google Maps country lookup)
-- and existing "traceroute"/"traceroute-nanog" on your operating system
+- and an existing "traceroute"/"traceroute-nanog" on your operating system
 
 ## Authors
 

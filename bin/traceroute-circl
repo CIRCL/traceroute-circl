@@ -21,6 +21,7 @@
 use strict;
 use utf8;
 
+use Socket;
 use Getopt::Compact;
 
 use Net::Whois::RIS;
@@ -105,12 +106,21 @@ while (<TRACEROUTE>) {
         my $abuse = join( ' ', Net::Abuse::Utils::get_ipwi_contacts($tip) );
         $r .= "  Abuse contact:" . $abuse . "\n";
         $ris->getIPInfo($tip);
+        my $ptr  = GetPTR($tip);
+        my $ra   = GetA($ptr);
+        my $raok = "WRONG";
+        if ( !defined($ra) )  { $raok = "No A record for PTR"; }
+        if ( $ra == $tip )    { $raok = "OK"; }
+        if ( !defined($ptr) ) { $raok = "N/A"; }
         $r .=
             "  ASN (RIS):"
           . $ris->getOrigin() . " "
           . $ris->getDescr()
           . " ASN INFO:"
-          . join( ' ', Net::Abuse::Utils::get_asn_info($tip) );
+          . join( ' ', Net::Abuse::Utils::get_asn_info($tip) ) . " PTR:"
+          . $ptr . " ("
+          . $ra . "-"
+          . $raok . ")";
 
         if ( defined( $opts->{rbl} ) ) {
             $r .= " RBL:"
@@ -142,6 +152,28 @@ if ( defined( $opts->{geomap} ) ) {
 }
 
 close(TRACEROUTE);
+
+sub GetPTR {
+    my $ip  = shift;
+    my $iip = inet_aton($ip);
+    if ( length($iip) > 1 ) {
+        return gethostbyaddr( $iip, AF_INET );
+    }
+    else {
+        return undef;
+    }
+}
+
+sub GetA {
+    my $name = shift;
+    my $iip  = gethostbyname($name);
+    if ( length($iip) > 1 ) {
+        return inet_ntoa($iip);
+    }
+    else {
+        return undef;
+    }
+}
 
 sub GetCountryLatLng {
 

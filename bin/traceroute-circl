@@ -2,8 +2,8 @@
 #
 # traceroute-circl - Traceroute improved wrapper for CSIRT and CERT operators
 #
-# Copyright (C) 2010 CIRCL Computer Incident Response Center Luxembourg (smile gie)
-# Copyright (C) 2010 Alexandre Dulaunoy
+# Copyright (C) 2010-2011 CIRCL Computer Incident Response Center Luxembourg (smile gie)
+# Copyright (C) 2010-2011 Alexandre Dulaunoy
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,11 +38,12 @@ my $ris     = Net::Whois::RIS->new();
 my $opt     = new Getopt::Compact(
     name    => 'traceroute-circl',
     modes   => [qw(debug)],
-    version => '0.2',
+    version => '0.3',
     struct  => [
-        [ [qw(i ip)],         qq(IP address to lookup),            ':s' ],
-        [ [qw(r rbl)],        qq(RBL domain to lookup),            ':s' ],
-        [ [qw(o addoptions)], qq(Additional option to traceroute), ':s' ],
+        [ [qw(i ip)],         qq(IP address to lookup),                  ':s' ],
+        [ [qw(r rbl)],        qq(RBL domain to lookup),                  ':s' ],
+        [ [qw(b bgpranking)], qq(Output CIRCL BGP Ranking for each ASN), ':s' ],
+        [ [qw(o addoptions)], qq(Additional option to traceroute),       ':s' ],
         [
             [qw(c country)],
             qq(Country ISO code to highlight (!!) in the output), ':s'
@@ -112,9 +113,16 @@ while (<TRACEROUTE>) {
         if ( !defined($ra) )  { $raok = "No A record for PTR"; }
         if ( $ra == $tip )    { $raok = "OK"; }
         if ( !defined($ptr) ) { $raok = "N/A"; }
+        my $asn = $ris->getOrigin();
+        my $bgpranking;
+
+        if ( defined( $opts->{bgpranking} ) ) {
+            $asn =~ s/^AS//g;
+            $bgpranking = GetBGPRanking($asn);
+        }
         $r .=
             "  ASN (RIS):"
-          . $ris->getOrigin() . " "
+          . $asn . " "
           . $ris->getDescr()
           . " ASN INFO:"
           . join( ' ', Net::Abuse::Utils::get_asn_info($tip) ) . " PTR:"
@@ -125,6 +133,10 @@ while (<TRACEROUTE>) {
         if ( defined( $opts->{rbl} ) ) {
             $r .= " RBL:"
               . Net::Abuse::Utils::get_dnsbl_listing( $tip, $opts->{rbl} );
+        }
+
+        if ( defined( $opts->{bgpranking} ) ) {
+            $r .= " BGP Ranking:" . $bgpranking;
         }
     }
 
@@ -152,6 +164,21 @@ if ( defined( $opts->{geomap} ) ) {
 }
 
 close(TRACEROUTE);
+
+sub GetBGPRanking {
+
+    my $asn = shift;
+
+    my $con =
+      IO::Socket::INET->new( PeerAddr => "pdns.circl.lu", PeerPort => 43 )
+      or die();
+    print $con $asn . "\n";
+    my $x;
+    while (<$con>) {
+        $x = $x . $_;
+    }
+    return $x;
+}
 
 sub GetPTR {
     my $ip  = shift;

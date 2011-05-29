@@ -119,6 +119,8 @@ while (<TRACEROUTE>) {
         if ( defined( $opts->{bgpranking} ) ) {
             $asn =~ s/^AS//g;
             $bgpranking = GetBGPRanking($asn);
+            my @a = split (/\n/, $bgpranking);
+            $bgpranking = $a[1];
         }
         $r .=
             "  ASN (RIS):"

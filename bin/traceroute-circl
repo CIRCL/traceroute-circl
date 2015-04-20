@@ -21,7 +21,7 @@
 use strict;
 use utf8;
 
-use Socket;
+use Socket qw(AF_INET AF_INET6 inet_pton inet_ntop);
 use Getopt::Compact;
 
 use Net::Whois::RIS;
@@ -30,11 +30,14 @@ use Net::Abuse::Utils;
 use Locale::Country;
 use LWP::Simple;
 use JSON;
+use Net::DNS;
 
 $| = 1;
 
 my $country = IP::Country::Fast->new();
 my $ris     = Net::Whois::RIS->new();
+my $res     = Net::DNS::Resolver->new();
+
 my $opt     = new Getopt::Compact(
     name    => 'traceroute-circl',
     modes   => [qw(debug)],
@@ -107,12 +110,13 @@ while (<TRACEROUTE>) {
         my $abuse = join( ' ', Net::Abuse::Utils::get_ipwi_contacts($tip) );
         $r .= "  Abuse contact:" . $abuse . "\n";
         $ris->getIPInfo($tip);
-        my $ptr  = GetPTR($tip);
-        my $ra   = GetA($ptr);
-        my $raok = "WRONG";
-        if ( !defined($ra) )  { $raok = "No A record for PTR"; }
-        if ( $ra == $tip )    { $raok = "OK"; }
-        if ( !defined($ptr) ) { $raok = "N/A"; }
+        my $addrtype = ($tip =~ /:/) ? "AAAA" : "A";
+        my $ptr      = GetPTR($tip);
+        my $rfwd     = GetFwd($ptr, $addrtype);
+        my $rfwdok   = "WRONG";
+        if ( !defined($rfwd) ) { $rfwdok = "No $addrtype record for PTR"; }
+        if ( $rfwd eq $tip )   { $rfwdok = "OK"; }
+        if ( !defined($ptr) )  { $rfwdok = "N/A"; }
         my $asn = $ris->getOrigin();
         my $bgpranking;
 
@@ -129,8 +133,8 @@ while (<TRACEROUTE>) {
           . " ASN INFO:"
           . join( ' ', Net::Abuse::Utils::get_asn_info($tip) ) . " PTR:"
           . $ptr . " ("
-          . $ra . "-"
-          . $raok . ")";
+          . $rfwd . "-"
+          . $rfwdok . ")";
 
         if ( defined( $opts->{rbl} ) ) {
             $r .= " RBL:"
@@ -184,24 +188,44 @@ sub GetBGPRanking {
 
 sub GetPTR {
     my $ip  = shift;
-    my $iip = inet_aton($ip);
-    if ( length($iip) > 1 ) {
-        return gethostbyaddr( $iip, AF_INET );
+
+    my $ret = $res->query($ip);
+    return undef unless $ret;
+
+    foreach my $rr ( $ret->answer ) {
+        if ( $rr->type eq "PTR" ) {
+            return $rr->ptrdname;
+        }
     }
-    else {
-        return undef;
-    }
+    return undef;
 }
 
-sub GetA {
-    my $name = shift;
-    my $iip  = gethostbyname($name);
-    if ( length($iip) > 1 ) {
-        return inet_ntoa($iip);
+sub GetCanonAddr {
+    my $ip = shift;
+
+    for my $family (AF_INET, AF_INET6) {
+        my $iip = inet_pton($family, $ip);
+        if ( $iip ) {
+            return inet_ntop($family, $iip);
+        }
     }
-    else {
-        return undef;
+
+    return $ip;
+}
+
+sub GetFwd {
+    my $name     = shift;
+    my $addrtype = shift;
+
+    my $ret = $res->query($name, $addrtype);
+    return undef unless $ret;
+
+    foreach my $rr ( $ret->answer ) {
+        if ( $rr->type eq $addrtype ) {
+            return GetCanonAddr($rr->address);
+        }
     }
+    return undef;
 }
 
 sub GetCountryLatLng {

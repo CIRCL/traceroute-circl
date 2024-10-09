@@ -8,10 +8,10 @@ received.
 ## Features
 
 - Display abuse and contact for each hop
-- Display CIRCL BGP Ranking services (experimental)
+- Display [CIRCL BGP Ranking services](https://bgpranking.circl.lu/)
 - Can highligh specific country to match CSIRT's constituency
 - Output RBL entries for each hop
-- Output Google Maps traceroute (e.g. [a sample output](http://www.foo.be/traceroute-circl/test.html) )
+- Output Google Maps traceroute
 - Show ASN origin from RIPE RIS and origin.asn.cymru.com sources
 
 ## Usage
